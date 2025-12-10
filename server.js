@@ -7,6 +7,33 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Keep-alive: auto-ping every 14 minutes to prevent Render from sleeping
+const KEEP_ALIVE_INTERVAL = 14 * 60 * 1000; // 14 minutes in milliseconds
+
+function keepAlive() {
+  const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}`;
+  
+  setInterval(async () => {
+    try {
+      const response = await fetch(`${url}/health`);
+      console.log(`[Keep-Alive] Ping successful at ${new Date().toISOString()}`);
+    } catch (error) {
+      console.log(`[Keep-Alive] Ping failed: ${error.message}`);
+    }
+  }, KEEP_ALIVE_INTERVAL);
+}
+
+// Start keep-alive only in production
+if (process.env.NODE_ENV === 'production' || process.env.RENDER_EXTERNAL_URL) {
+  keepAlive();
+  console.log('[Keep-Alive] Service started - pinging every 14 minutes');
+}
+
 // Routes
 app.get('/api/recintos', async (req, res) => {
   try {
